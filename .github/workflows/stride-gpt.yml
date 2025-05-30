@@ -1,0 +1,146 @@
+name: STRIDE Threat Modeling
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      ai_provider:
+        description: 'AI Provider to use'
+        required: true
+        default: 'openai'
+        type: choice
+        options:
+          - openai
+          - anthropic
+      model:
+        description: 'Model to use (optional - uses default if not specified)'
+        required: false
+        type: string
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        default: false
+        type: boolean
+  
+  # Also trigger on pull requests for automatic threat modeling
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.py'
+      - '**.js'
+      - '**.java'
+      - '**.go'
+      - '**.yml'
+      - '**.yaml'
+      - '**/config/**'
+      - '**/auth/**'
+      - '**/security/**'
+
+jobs:
+  stride-threat-model:
+    runs-on: ubuntu-latest
+    name: Run STRIDE Threat Analysis
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: Run STRIDE-GPT Analysis
+        uses: mrwadams/stride-gpt-action@main
+        id: stride
+        with:
+          # Required inputs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          
+          # Optional inputs with defaults
+          ai-provider: ${{ github.event.inputs.ai_provider || 'openai' }}
+          model: ${{ github.event.inputs.model || '' }}
+          temperature: '0.2'
+          verbose: ${{ github.event.inputs.verbose || 'false' }}
+          
+          # Files to analyze (optional - analyzes all by default)
+          # files-to-analyze: |
+          #   app/**/*.py
+          #   config/**/*
+          #   .env
+      
+      - name: Upload STRIDE Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stride-threat-model-report
+          path: |
+            stride-report.md
+            stride-report.json
+          retention-days: 30
+      
+      - name: Comment PR with Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let report = 'STRIDE Threat Model Analysis not found.';
+            
+            try {
+              if (fs.existsSync('stride-report.md')) {
+                report = fs.readFileSync('stride-report.md', 'utf8');
+                
+                // Truncate if too long for PR comment
+                if (report.length > 65000) {
+                  report = report.substring(0, 65000) + '\n\n... (truncated - see full report in artifacts)';
+                }
+              }
+            } catch (error) {
+              console.error('Error reading report:', error);
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔒 STRIDE Threat Model Analysis\n\n${report}`
+            });
+      
+      - name: Fail if critical threats found
+        if: steps.stride.outputs.critical-threats-found == 'true'
+        run: |
+          echo "❌ Critical security threats were identified!"
+          echo "Please review the STRIDE report and address the issues."
+          exit 1
+
+  # Additional job for testing both providers
+  test-both-providers:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        provider: [openai, anthropic]
+    name: Test with ${{ matrix.provider }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run STRIDE-GPT with ${{ matrix.provider }}
+        uses: mrwadams/stride-gpt-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          ai-provider: ${{ matrix.provider }}
+          verbose: 'true'
+      
+      - name: Upload ${{ matrix.provider }} Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: stride-report-${{ matrix.provider }}
+          path: |
+            stride-report.md
+            stride-report.json
+          retention-days: 7

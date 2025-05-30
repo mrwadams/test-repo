@@ -1,0 +1,30 @@
+# Database configuration with security issues
+
+development:
+  adapter: postgresql
+  host: localhost
+  port: 5432
+  database: dev_db
+  username: developer
+  password: dev123  # Security issue: password in plaintext
+  pool: 5
+
+test:
+  adapter: postgresql
+  host: localhost
+  port: 5432
+  database: test_db
+  username: tester
+  password: test123  # Security issue: weak password
+
+production:
+  adapter: postgresql
+  host: prod-db.company.com
+  port: 5432
+  database: production_db
+  username: admin
+  password: admin@123  # Security issue: credentials in config file
+  pool: 25
+  # Security issue: exposing internal network details
+  replica_host: 10.0.1.50
+  replica_port: 5433
