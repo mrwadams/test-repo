@@ -1,4 +1,4 @@
-name: Threat Analysis on Comment
+name: Security Analysis on Comment
 
 on:
   issue_comment:
@@ -6,10 +6,19 @@ on:
 
 jobs:
   stride-analysis:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '@stride-gpt')
+    # Run on both issue and PR comments that mention @stride-gpt
+    if: contains(github.event.comment.body, '@stride-gpt')
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    
     steps:
-      - uses: mrwadams/stridegpt-action@main
+      - name: Run STRIDE-GPT Analysis
+        uses: mrwadams/stridegpt-action@feature/issue-threat-modeling
         with:
           stride-api-key: ${{ secrets.STRIDE_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           trigger-mode: comment
