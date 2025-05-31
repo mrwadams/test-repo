@@ -1,0 +1,15 @@
+name: Threat Analysis on Comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  stride-analysis:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '@stride-gpt')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: mrwadams/stridegpt-action@main
+        with:
+          stride-api-key: ${{ secrets.STRIDE_API_KEY }}
+          trigger-mode: comment
