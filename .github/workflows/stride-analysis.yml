@@ -1,9 +1,7 @@
 name: STRIDE-GPT Security Analysis
 
 on:
-  workflow_dispatch:  # Manual trigger
-  pull_request:       # Auto-trigger on PRs
-    types: [opened, synchronize]
+  workflow_dispatch:
 
 jobs:
   security-analysis:
@@ -11,7 +9,7 @@ jobs:
     name: STRIDE Threat Modeling
 
     steps:
-    - name: Run STRIDE-GPT Analysis
+    - name: Debug container
       uses: mrwadams/stridegpt-action@main
       with:
         stride-api-key: ${{ secrets.STRIDE_API_KEY }}
