@@ -17,7 +17,7 @@ jobs:
     
     steps:
       - name: Run STRIDE-GPT Analysis
-        uses: mrwadams/stridegpt-action@feature/stride-status-improvements
+        uses: mrwadams/stridegpt-action@feature/phase2-status-enhancements
         with:
           stride-api-key: ${{ secrets.STRIDE_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
